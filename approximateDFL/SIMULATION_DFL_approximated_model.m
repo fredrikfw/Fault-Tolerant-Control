@@ -77,8 +77,14 @@ rpy_initial = [roll_initial pitch_initial yaw_initial]';
 initialConditions = zeros(14,1);
 initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
 
+initialConditions_Observer = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial]; %added for observer
+
 options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 [t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
+
+
+%%% trying to include an observer of some kind
+
 
 %% Results
 x = state(:,1);
