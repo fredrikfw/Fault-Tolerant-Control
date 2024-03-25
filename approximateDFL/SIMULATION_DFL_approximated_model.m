@@ -84,7 +84,7 @@ options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 
 
 %%% trying to include an observer of some kind
-
+[t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
 
 %% Results
 x = state(:,1);
