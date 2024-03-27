@@ -10,7 +10,7 @@ clear all; close all;
 
 % quadrotor
 global Ix Iy Iz g m J o
-T = 2.5;          %% (planning) period T
+T = 5;          %% (planning) period T
 g = 9.81;
 m = 4.34;
 Ix = 0.0820;
@@ -26,7 +26,7 @@ c3 = 26;c2 = 253;c1 = 1092; c0 = 1764;
 
 %% Planning
 
-Tspan = [0 5];
+Tspan = [0 T];
 
 %% Initial condition on integrators
 
@@ -92,7 +92,24 @@ options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 x = state(:,1);
 y = state(:,2);
 z = state(:,3);
+roll = state(:,7);
+pitch = state(:,8);
 yaw = state(:,9);
+
+x_observer = state(:,15);
+y_observer = state(:, 16);
+z_observer = state(:, 17);
+roll_observer = state(:,21);
+pitch_observer = state(:, 22);
+yaw_observer = state(:, 23);
+
+r1 = x-x_observer;
+r2 = y-y_observer;
+r3 = z-z_observer;
+r4 = roll - roll_observer;
+r5 = pitch - pitch_observer;
+r6 = yaw - yaw_observer;
+
 
 %%%%height control%%%%
 
@@ -202,17 +219,22 @@ figure(17);plot(t,yaw,t,yawd);legend('yaw','yaw_d');xlabel('t [sec]');ylabel('ya
 
 % 3D Plot of the path followed by the quadrotor vs the desired path
 figure(18);
-plot3(x, y, z, 'b', xd, yd, zd, 'r');
-legend('Quadrotor Path', 'Desired Path');
+plot3(x, y, z, 'b', xd, yd, zd, 'r', x_observer, y_observer, z_observer, 'g');
+legend('Quadrotor Path', 'Desired Path', 'Observer_Path');
 xlabel('X [m]');
 ylabel('Y [m]');
 zlabel('Z [m]');
-title('Quadrotor Path vs. Desired Path');
+title('Quadrotor Path vs. Desired Path vs. Observer path');
 grid on;
+
+
 %zlim([-5,5])
 
 figure(19);plot(t,utilde(2,:));legend('Tau Roll');xlabel('t [sec]');ylabel('Tau Roll [Nm]');title('Tau_Roll');ylim([-10, 10])
 figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau Pitch [Nm]');title('Tau_Pitch');ylim([-10, 10])
 figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
 %figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
+figure(22);plot(t,r1); legend('R1'); xlabel('t [sec]');ylabel('deltaX');title('R1  / x');ylim([-10, 10])
+figure(23);plot(t,r2); legend('R2'); xlabel('t [sec]');ylabel('deltaY');title('R2  / y');ylim([-10, 10])
+figure(24);plot(t,r3); legend('R3'); xlabel('t [sec]');ylabel('deltaZ');title('R3  / Y');ylim([-10, 10])
 

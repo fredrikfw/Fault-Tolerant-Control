@@ -1,4 +1,4 @@
-function dobserver_model = observer_experimental(observer_state, state, u)
+function dobserver_model = observer_experimental(state, observer_state, u)
 
 %% initializing variables
 v = observer_state(4:6); phi = observer_state(7); theta = observer_state(8); psi = observer_state(9); p = observer_state(10); q = observer_state(11); r = observer_state(12); omega = observer_state(10:12);
@@ -25,8 +25,8 @@ domega = inv(J)*(M-cross(omega,J*omega));
     
 %% function output
 
-dobserver_model = [v;dv;drpy;domega] + K*(state(1:12)-observer_state(1:12));
- 
+%dobserver_model = [v;dv;drpy;domega] + K*(state(1:12)-observer_state(1:12));
+ dobserver_model = [v;dv;drpy;domega]; %+ K*(state(1:12)-observer_state(1:12));
 
 
 end
