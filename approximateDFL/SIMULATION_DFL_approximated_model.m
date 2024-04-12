@@ -9,8 +9,8 @@ clear all; close all;
 %% Parameters
 
 % quadrotor
-global Ix Iy Iz g m J o;
-T = 5;          %% (planning) period T
+global Ix Iy Iz g m J o
+T = 2.5;          %% (planning) period T
 g = 9.81;
 m = 4.34;
 Ix = 0.0820;
@@ -26,7 +26,7 @@ c3 = 26;c2 = 253;c1 = 1092; c0 = 1764;
 
 %% Planning
 
-Tspan = [0 T];
+Tspan = [0 5];
 
 %% Initial condition on integrators
 
@@ -71,44 +71,78 @@ f_dot_initial = 0;
 % f_dot_initial = 0;
 
 
-%% Run ODE
+%% %%%%%%%%%%% OBSERVER %%%%%%%%%%%%%%%%%%%
+h = [zeros(3,1);
+         -(f/m)*(cphi*ctheta*cpsi + spsi*sphi)
+         -(f/m)*(cphi*stheta*spsi - cpsi*sphi)
+         -(f/m)*(cphi*ctheta)
+         q*r*(Iy - Iz)/Ix;
+         p*r*(Iz - Ix)/Iy;
+         p*q*(Ix - Iy)/Iz; ];  
+    
+   A = [zeros(3) eye(3) zeros(3,6);
+        zeros(3,12);
+        zeros(1,9) ones(1) zeros(1,2);
+        zeros(5,12)]
 
-rpy_initial = [roll_initial pitch_initial yaw_initial]';
-initialConditions = zeros(14,1);
-initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
 
-initialConditions_Observer = [x_initial;v_initial;rpy_initial;omega_initial]; %added for observer, though not with the f_initial, that is for dynamic compensator apparantly
-
-options = odeset('RelTol',1e-9,'AbsTol',1e-15);
-%original ode45 call
-%[t,state] = ode45(@(t,state, u)dfl_approximated_ode(t,state),Tspan,initialConditions,options); this was the original  
-[t,state] = ode45(@(t,state, u)dfl_approximated_ode(t,state),Tspan,[initialConditions;initialConditions_Observer],options);   
+    C = eye(12);
+    C_hat= - transpose(C)*C
 
 
+    delta= 0.372;
+
+    A_hat=transpose(A)+delta
+    B=A
+
+    P= lyap(A_hat,B,C_hat) %sylvester equation
+
+    K= inv(P)*transpose(C)
+
+    % Simulation time
+    %t_span = 0:0.01:10;
+    % Initial states
+    %x0 = [1; 0];            % Actual initial state
+    x0_hat = zeros(12,1);        % Estimated initial state
+
+    u_comp = dynamic_compensator(state,v)
+
+    % Luenberger Observer dynamics
+    observer = @(t, x_hat, state(1:12)) A * x_hat + h + B * u_comp + K* (state(1:12) - C * x_hat);
+
+    x_meas = x_actual(:, 1); % Assume we can only measure displacement
+
+    x_hat = zeros(length(Tspan), 12);
+    x_hat(1, :) = transpose(x0_hat);
+
+    %% Run ODE
+
+    rpy_initial = [roll_initial pitch_initial yaw_initial]';
+    initialConditions = zeros(14,1);
+    initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
+    
+    options = odeset('RelTol',1e-9,'AbsTol',1e-15);
+    [t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
+
+    for i = 1:length(Tspan) - 1
+        [~, x_temp] = ode45(@(t, x) observer(t, x, x_meas(i)), [Tspan(i), Tspan(i+1)], x_hat(i, :)');
+        x_hat(i+1, :) = x_temp(end, :);
+    end
 
 
+
+
+
+
+%%%%% MODIFIED STUFF %%%%
+%[t,state_estimated] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
 
 %% Results
 x = state(:,1);
 y = state(:,2);
 z = state(:,3);
-roll = state(:,7);
-pitch = state(:,8);
 yaw = state(:,9);
 
-x_observer = state(:,15);
-y_observer = state(:, 16);
-z_observer = state(:, 17);
-roll_observer = state(:,21);
-pitch_observer = state(:, 22);
-yaw_observer = state(:, 23);
-
-r1 = x-x_observer;
-r2 = y-y_observer;
-r3 = z-z_observer;
-r4 = roll - roll_observer;
-r5 = pitch - pitch_observer;
-r6 = yaw - yaw_observer;
 
 
 %%%%height control%%%%
@@ -219,31 +253,17 @@ figure(17);plot(t,yaw,t,yawd);legend('yaw','yaw_d');xlabel('t [sec]');ylabel('ya
 
 % 3D Plot of the path followed by the quadrotor vs the desired path
 figure(18);
-plot3(x, y, z, 'b', xd, yd, zd, 'r', x_observer, y_observer, z_observer, 'g');
-legend('Quadrotor Path', 'Desired Path', 'Observer_Path');
+plot3(x, y, z, 'b', xd, yd, zd, 'r');
+legend('Quadrotor Path', 'Desired Path');
 xlabel('X [m]');
 ylabel('Y [m]');
 zlabel('Z [m]');
-title('Quadrotor Path vs. Desired Path vs. Observer path');
+title('Quadrotor Path vs. Desired Path');
 grid on;
-
-% %plot traj without observer
-% figure(18);
-% plot3(x, y, z, 'b', xd, yd, zd, 'r');
-% legend('Quadrotor Path', 'Desired Path');
-% xlabel('X [m]');
-% ylabel('Y [m]');
-% zlabel('Z [m]');
-% title('Quadrotor Path vs. Desired Path');
-% grid on;
-
 %zlim([-5,5])
 
-% figure(19);plot(t,utilde(2,:));legend('Tau Roll');xlabel('t [sec]');ylabel('Tau Roll [Nm]');title('Tau_Roll');ylim([-10, 10])
-% figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau Pitch [Nm]');title('Tau_Pitch');ylim([-10, 10])
-% figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
-% %figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
-% figure(22);plot(t,r1); legend('R1'); xlabel('t [sec]');ylabel('deltaX');title('R1  / x');ylim([-10, 10])
-% figure(23);plot(t,r2); legend('R2'); xlabel('t [sec]');ylabel('deltaY');title('R2  / y');ylim([-10, 10])
-% figure(24);plot(t,r3); legend('R3'); xlabel('t [sec]');ylabel('deltaZ');title('R3  / Y');ylim([-10, 10])
-% 
+figure(19);plot(t,utilde(2,:));legend('Tau Roll');xlabel('t [sec]');ylabel('Tau Roll [Nm]');title('Tau_Roll');ylim([-10, 10])
+figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau Pitch [Nm]');title('Tau_Pitch');ylim([-10, 10])
+figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
+%figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
+
