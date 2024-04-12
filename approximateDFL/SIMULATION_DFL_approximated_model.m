@@ -9,7 +9,7 @@ clear all; close all;
 %% Parameters
 
 % quadrotor
-global Ix Iy Iz g m J o
+global Ix Iy Iz g m J o;
 T = 5;          %% (planning) period T
 g = 9.81;
 m = 4.34;
@@ -84,7 +84,7 @@ options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 %[t,state] = ode45(@(t,state, u)dfl_approximated_ode(t,state),Tspan,initialConditions,options); this was the original  
 [t,state] = ode45(@(t,state, u)dfl_approximated_ode(t,state),Tspan,[initialConditions;initialConditions_Observer],options);   
 
-%[t,observer_state] = ode45(@(t,state, u) observer_experimental(t,state),Tspan,initialConditions,options);
+
 
 
 
@@ -227,14 +227,23 @@ zlabel('Z [m]');
 title('Quadrotor Path vs. Desired Path vs. Observer path');
 grid on;
 
+% %plot traj without observer
+% figure(18);
+% plot3(x, y, z, 'b', xd, yd, zd, 'r');
+% legend('Quadrotor Path', 'Desired Path');
+% xlabel('X [m]');
+% ylabel('Y [m]');
+% zlabel('Z [m]');
+% title('Quadrotor Path vs. Desired Path');
+% grid on;
 
 %zlim([-5,5])
 
-figure(19);plot(t,utilde(2,:));legend('Tau Roll');xlabel('t [sec]');ylabel('Tau Roll [Nm]');title('Tau_Roll');ylim([-10, 10])
-figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau Pitch [Nm]');title('Tau_Pitch');ylim([-10, 10])
-figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
-%figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
-figure(22);plot(t,r1); legend('R1'); xlabel('t [sec]');ylabel('deltaX');title('R1  / x');ylim([-10, 10])
-figure(23);plot(t,r2); legend('R2'); xlabel('t [sec]');ylabel('deltaY');title('R2  / y');ylim([-10, 10])
-figure(24);plot(t,r3); legend('R3'); xlabel('t [sec]');ylabel('deltaZ');title('R3  / Y');ylim([-10, 10])
-
+% figure(19);plot(t,utilde(2,:));legend('Tau Roll');xlabel('t [sec]');ylabel('Tau Roll [Nm]');title('Tau_Roll');ylim([-10, 10])
+% figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau Pitch [Nm]');title('Tau_Pitch');ylim([-10, 10])
+% figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
+% %figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
+% figure(22);plot(t,r1); legend('R1'); xlabel('t [sec]');ylabel('deltaX');title('R1  / x');ylim([-10, 10])
+% figure(23);plot(t,r2); legend('R2'); xlabel('t [sec]');ylabel('deltaY');title('R2  / y');ylim([-10, 10])
+% figure(24);plot(t,r3); legend('R3'); xlabel('t [sec]');ylabel('deltaZ');title('R3  / Y');ylim([-10, 10])
+% 
