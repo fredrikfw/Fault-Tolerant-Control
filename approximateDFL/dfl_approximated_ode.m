@@ -8,7 +8,7 @@ utilde = dynamic_compensator(state,v);
 dzeta = [state(14);utilde(1)];
 
 %% quadrotor
-u = [state(13);utilde(2:4)];
+u = [state(13);utilde(2:4)]; %state13 is T, while for the ~u it would have been T_dot_dot
 
 %%failure injection
 failure = true;  %true or false
@@ -20,7 +20,21 @@ if failure == true & t > failure_time
 end
 
 dquadrotor_model = quadrotor_model(state(1:12),u_failure);
-dobserver_model = observer_experimental(state(1:12), state(15:26), u);  %two states here, first is states of observer, second are "measurements", state of systems assuming C = 1
+
+
+%observer simulation
+x_meas = x_actual;%(:, 1); % Assume we can only measure displacement
+
+x0_hat = zeros(12,1);        % Estimated initial state
+
+x_hat = zeros(length(Tspan), 12);
+x_hat(1, :) = transpose(x0_hat);
+
+for i = 1:length(Tspan) - 1
+    [~, x_temp] = ode45(@(t, x) observer_experimental(t, x, x_meas(i)), [Tspan(i), Tspan(i+1)], x_hat(i, :)');
+    x_hat(i+1, :) = x_temp(end, :);
+end
+
 
 
 % ode output

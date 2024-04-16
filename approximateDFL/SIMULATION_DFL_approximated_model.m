@@ -9,7 +9,7 @@ clear all; close all;
 %% Parameters
 
 % quadrotor
-global Ix Iy Iz g m J o
+global Ix Iy Iz g m J o T
 T = 2.5;          %% (planning) period T
 g = 9.81;
 m = 4.34;
@@ -20,13 +20,15 @@ o = 2*pi/T;
 
 J = [Ix 0 0; 0 Iy 0;0 0 Iz];
 
+
+
 % Hurwitz polynomial coefficients for controller
 global c0 c1 c2 c3
 c3 = 26;c2 = 253;c1 = 1092; c0 = 1764;
 
 %% Planning
 
-Tspan = [0 5];
+Tspan = [0 T];
 
 %% Initial condition on integrators
 
@@ -71,68 +73,26 @@ f_dot_initial = 0;
 % f_dot_initial = 0;
 
 
-%% %%%%%%%%%%% OBSERVER %%%%%%%%%%%%%%%%%%%
-h = [zeros(3,1);
-         -(f/m)*(cphi*ctheta*cpsi + spsi*sphi)
-         -(f/m)*(cphi*stheta*spsi - cpsi*sphi)
-         -(f/m)*(cphi*ctheta)
-         q*r*(Iy - Iz)/Ix;
-         p*r*(Iz - Ix)/Iy;
-         p*q*(Ix - Iy)/Iz; ];  
+
     
-   A = [zeros(3) eye(3) zeros(3,6);
-        zeros(3,12);
-        zeros(1,9) ones(1) zeros(1,2);
-        zeros(5,12)]
 
 
-    C = eye(12);
-    C_hat= - transpose(C)*C
 
+   
 
-    delta= 0.372;
-
-    A_hat=transpose(A)+delta
-    B=A
-
-    P= lyap(A_hat,B,C_hat) %sylvester equation
-
-    K= inv(P)*transpose(C)
-
-    % Simulation time
-    %t_span = 0:0.01:10;
-    % Initial states
-    %x0 = [1; 0];            % Actual initial state
-    x0_hat = zeros(12,1);        % Estimated initial state
-
-    u_comp = dynamic_compensator(state,v)
-
-    % Luenberger Observer dynamics
-    observer = @(t, x_hat, state(1:12)) A * x_hat + h + B * u_comp + K* (state(1:12) - C * x_hat);
-
-    x_meas = x_actual(:, 1); % Assume we can only measure displacement
-
-    x_hat = zeros(length(Tspan), 12);
-    x_hat(1, :) = transpose(x0_hat);
-
-    %% Run ODE
-
-    rpy_initial = [roll_initial pitch_initial yaw_initial]';
-    initialConditions = zeros(14,1);
-    initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
+   
+   
     
-    options = odeset('RelTol',1e-9,'AbsTol',1e-15);
-    [t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
-
-    for i = 1:length(Tspan) - 1
-        [~, x_temp] = ode45(@(t, x) observer(t, x, x_meas(i)), [Tspan(i), Tspan(i+1)], x_hat(i, :)');
-        x_hat(i+1, :) = x_temp(end, :);
-    end
 
 
+%% Run ODE
 
+rpy_initial = [roll_initial pitch_initial yaw_initial]';
+initialConditions = zeros(14,1);
+initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
 
-
+options = odeset('RelTol',1e-9,'AbsTol',1e-15);
+[t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
 
 %%%%% MODIFIED STUFF %%%%
 %[t,state_estimated] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
