@@ -12,7 +12,7 @@ A = [zeros(6) eye(6);
  % C = [eye(3) zeros(3,9); 
  %      zeros(3,9) eye(3)]
 
- C=[eye(6) zeros(6)];
+ C=eye(12);
 
 %calculating Lyap eq
 
@@ -28,7 +28,7 @@ delta = 0.1;
 
     try chol(P'*P)
         disp('Matrix is positive definite');
-        K= inv(P)*transpose(C)
+        K= inv(P)*transpose(C);
         
         disp ('delta=')
         disp (delta)

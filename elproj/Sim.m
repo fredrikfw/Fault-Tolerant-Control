@@ -12,8 +12,12 @@ Ix = 0.0820;
 Iy = 0.0845;
 Iz = 0.1377;
 o = 2*pi/T;
+T_step = 0.01;
 
 J = [Ix 0 0; 0 Iy 0;0 0 Iz];
+
+
+
 
 
 % Hurwitz polynomial coefficients for controller
@@ -22,7 +26,7 @@ c3 = 26;c2 = 253;c1 = 1092; c0 = 1764;
 
 %% Planning
 
-Tspan = [0 T];
+Tspan = [0:T_step:T];
 
 %% Initial condition on integrators
 
@@ -45,11 +49,31 @@ initialConditions = [x_initial;rpy_initial;v_initial;omega_initial;f_initial;f_d
 options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 [t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
 
+x0_hat = zeros(12,1);    % Estimated initial state
+
+
+
+
+
+
+% % Luenberger Observer dynamics
+% observer = @(t, x_hat, x_meas) A * x_hat + B * u + L * (x_meas - C * x_hat);
+% % Simulate the system and observer
+% [~, x_actual] = ode45(mass_spring_damper, t_span, x0);
+% x_meas = x_actual(:, 1); % Assume we can only measure displacement
+% x_hat = zeros(length(t_span), 2);
+% x_hat(1, :) = x0_hat';
+% for i = 1:length(t_span) - 1
+%     [~, x_temp] = ode45(@(t, x) observer(t, x, x_meas(i)), [t_span(i), t_span(i+1)], x_hat(i, :)');
+%     x_hat(i+1, :) = x_temp(end, :);
+% end
+
 %% Results
 x = state(:,1);
 y = state(:,2);
 z = state(:,3);
 yaw = state(:,6);
+
 
 %% circumference
 xd = cos(o*t)*cos(pi/4);
@@ -66,6 +90,20 @@ for j = 1:length(t)
     v = linear_controller(t(j), state(j,:)');
     utilde(:,j) = dynamic_compensator(state(j,:),v);
 end
+
+% Thau Observer dynamics
+x_meas = state(:,1:12); 
+x_hat = zeros(length(t), 12);
+x_hat(1, :) = x0_hat';
+for i = 1:length(t) - 1
+    [~, x_temp] = ode45(@(t, x) observer(t,x, x_meas(i,1:12)', utilde(:,i)), [t(i), t(i+1)], x_hat(i, :)');
+    x_hat(i+1, :) = x_temp(end,:);
+end
+
+
+x_obs = x_hat(:,1);
+y_obs = x_hat(:,2);
+z_obs = x_hat(:,3);
 
 %%% PLOTTING STATE VARIABLES
 figure(1);plot(t,state(:,1));legend('x');xlabel('t [sec]');ylabel('x [m]');title('x');
@@ -109,3 +147,13 @@ figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau
 figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
 %figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
 
+% 3D Plot of the path followed by the quadrotor vs the desired path and
+% observer
+figure(22);
+plot3(x, y, z, 'b', xd, yd, zd, 'r', x_obs, y_obs, z_obs, 'g');
+legend('Quadrotor Path', 'Desired Path', 'Observer path');
+xlabel('X [m]');
+ylabel('Y [m]');
+zlabel('Z [m]');
+title('Quadrotor Path vs. Desired Path vs. Observer');
+grid on;
