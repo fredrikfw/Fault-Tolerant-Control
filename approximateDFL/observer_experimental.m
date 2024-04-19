@@ -30,19 +30,23 @@ C_hat= - transpose(C)*C;
 
 
 A_hat=transpose(A)+delta;
-B=A;
+B_lyap=A;
 
-P= lyap(A_hat,B,C_hat); %sylvester equation
+P= lyap(A_hat,B_lyap,C_hat); %sylvester equation
 
 K= inv(P)*transpose(C);
 
+szA = size(A*observer_state(1:12))
+szh = size(h)
+szB = size(B*u)      
 
-      
+szK = size(K)
+szKprod = size(K* (state(1:12) - C * observer_state(1:12)))
 %% function output ??
 
 %dobserver_model = [v;dv;drpy;domega] + K*(state(1:12)-observer_state(1:12));
 %dobserver_model = A*observer_state + B*u + h + K*(state(1:12)-observer_state(1:12));
-dobserver_model = A * x_hat + h + B * u + K* (state_1_12 - C * x_hat);
+dobserver_model = A * observer_state(1:12) + h + B * u + K* (state(1:12) - C * observer_state(1:12));
 
 end
 

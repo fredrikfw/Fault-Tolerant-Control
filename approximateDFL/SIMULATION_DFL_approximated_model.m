@@ -17,6 +17,7 @@ Ix = 0.0820;
 Iy = 0.0845;
 Iz = 0.1377;
 o = 2*pi/T;
+T_step = 0.01;  %0.01 seems to be ok step size for ordinary simulation
 
 J = [Ix 0 0; 0 Iy 0;0 0 Iz];
 
@@ -28,7 +29,7 @@ c3 = 26;c2 = 253;c1 = 1092; c0 = 1764;
 
 %% Planning
 
-Tspan = [0 T];
+Tspan = [0:T_step:T];
 
 %% Initial condition on integrators
 
@@ -72,30 +73,36 @@ f_dot_initial = 0;
 % f_initial = 0.1;
 % f_dot_initial = 0;
 
-
-
-    
-
-
-
-   
-
-   
-   
-    
-
-
 %% Run ODE
+%initial cond for u in ode (to get same length of all
+u_init = [0; 0; 0; 0];
 
 rpy_initial = [roll_initial pitch_initial yaw_initial]';
-initialConditions = zeros(14,1);
-initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
+%initialConditions = zeros(14,1);
+%initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial];
+initialConditions = [x_initial;v_initial;rpy_initial;omega_initial;f_initial;f_dot_initial; u_init]; %added u_init to get correct size of init cond for odde 45
+
 
 options = odeset('RelTol',1e-9,'AbsTol',1e-15);
 [t,state] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
 
 %%%%% MODIFIED STUFF %%%%
-%[t,state_estimated] = ode45(@(t,state) dfl_approximated_ode(t,state),Tspan,initialConditions,options);
+
+u_to_observer = state(15:19);
+x_meas = state(:, 1:12);        %assume we can measure all states 
+
+x0_hat = zeros(12,1);        % Estimated initial state
+x_hat = zeros(length(Tspan), 12);
+x_hat(1, :) = transpose(x0_hat);
+
+for i = 1:length(Tspan) - 1
+    [~, x_temp] = ode45(@(t, x) observer_experimental(x_meas(i), x_hat(i,:)', u_to_observer), [Tspan(i), Tspan(i+1)], x_hat(i, :)');
+    x_hat(i+1, :) = x_temp(end, :);
+end
+
+
+
+
 
 %% Results
 x = state(:,1);
@@ -103,6 +110,9 @@ y = state(:,2);
 z = state(:,3);
 yaw = state(:,9);
 
+x_obs = x_hat(:,1);
+y_obs = x_hat(:,2);
+z_obs = x_hat(:,3);
 
 
 %%%%height control%%%%
@@ -227,3 +237,14 @@ figure(20);plot(t,utilde(3,:));legend('Tau Pitch');xlabel('t [sec]');ylabel('Tau
 figure(21);plot(t,utilde(4,:));legend('Tau Yaw');xlabel('t [sec]');ylabel('Tau Yaw [Nm]');title('Tau_Yaw');ylim([-10, 10])
 %figure(19);plot(t, utilde(2,:), t, utilde(3,:), t, utilde(4,:), ylim=[-10,10]);
 
+% 3D Plot of the path followed by the quadrotor vs the desired path and
+% observer
+figure(22);
+plot3(x, y, z, 'b', xd, yd, zd, 'r', x_obs, y_obs, z_obs, 'g');
+legend('Quadrotor Path', 'Desired Path', 'Observer path');
+xlabel('X [m]');
+ylabel('Y [m]');
+zlabel('Z [m]');
+title('Quadrotor Path vs. Desired Path vs. Observer ' );
+grid on;
+%zlim([-5,5])
